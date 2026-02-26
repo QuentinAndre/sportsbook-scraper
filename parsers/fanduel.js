@@ -1,170 +1,126 @@
-// FanDuel-specific DOM selectors and parsing
+// FanDuel-specific DOM parsing
 // Guard against re-injection
 if (typeof FanDuelParser === 'undefined') {
   class FanDuelParser {
     static SITE = 'FanDuel';
 
-    // Selectors ordered by stability: data-testid > aria > class partial
-    static SELECTORS = {
-      // Bet card containers
-      betCard: [
-        '[data-testid="bet-card"]',
-        '[data-testid="settled-bet"]',
-        '[class*="betslip-card"]',
-        '[class*="settled-bet"]',
-        '[class*="BetCard"]',
-        '[class*="bet-receipt"]'
-      ],
-      // Date/time
-      date: [
-        '[data-testid="bet-date"]',
-        '[class*="bet-date"]',
-        '[class*="betDate"]',
-        '[class*="date-time"]',
-        '[class*="timestamp"]'
-      ],
-      // Event name
-      event: [
-        '[data-testid="event-name"]',
-        '[data-testid="bet-event"]',
-        '[class*="event-name"]',
-        '[class*="eventName"]',
-        '[class*="matchup"]'
-      ],
-      // Selection / pick
-      selection: [
-        '[data-testid="selection-name"]',
-        '[data-testid="bet-selection"]',
-        '[class*="selection"]',
-        '[class*="pick-name"]',
-        '[class*="outcome"]'
-      ],
-      // Odds
-      odds: [
-        '[data-testid="odds"]',
-        '[data-testid="bet-odds"]',
-        '[class*="odds"]',
-        '[class*="price"]'
-      ],
-      // Stake / wager
-      stake: [
-        '[data-testid="stake"]',
-        '[data-testid="bet-stake"]',
-        '[class*="stake"]',
-        '[class*="wager"]',
-        '[class*="risk"]'
-      ],
-      // Payout / winnings
-      payout: [
-        '[data-testid="payout"]',
-        '[data-testid="bet-payout"]',
-        '[data-testid="potential-payout"]',
-        '[class*="payout"]',
-        '[class*="winnings"]',
-        '[class*="return"]'
-      ],
-      // Result (won/lost/push)
-      result: [
-        '[data-testid="bet-result"]',
-        '[data-testid="bet-status"]',
-        '[class*="result"]',
-        '[class*="status"]',
-        '[class*="badge"]'
-      ],
-      // Bet type (single, parlay, etc.)
-      betType: [
-        '[data-testid="bet-type"]',
-        '[class*="bet-type"]',
-        '[class*="betType"]',
-        '[class*="wager-type"]'
-      ],
-      // Sport/League
-      sport: [
-        '[data-testid="sport-name"]',
-        '[class*="sport"]',
-        '[class*="league"]',
-        '[class*="competition"]'
-      ]
-    };
-
-    static URL_PATTERN = /fanduel\.com\/(account\/activity|history|mybets)/i;
+    static URL_PATTERN = /fanduel\.com\/(my-bets|account\/activity|history|mybets)/i;
 
     static isValidPage(url) {
       return FanDuelParser.URL_PATTERN.test(url);
     }
 
-    static queryFirst(parent, selectorList) {
-      for (const sel of selectorList) {
-        const el = parent.querySelector(sel);
-        if (el) return el.textContent.trim();
-      }
-      return '';
-    }
-
-    static findBetCards() {
-      for (const sel of FanDuelParser.SELECTORS.betCard) {
-        const cards = document.querySelectorAll(sel);
-        if (cards.length > 0) return Array.from(cards);
-      }
-
-      // Fallback: look for repeating card-like structures
-      const candidates = document.querySelectorAll(
-        '[class*="card"], [class*="bet"], [class*="receipt"], [class*="slip"]'
-      );
-      // Filter to elements that likely contain bet info (have stake/odds text)
-      return Array.from(candidates).filter(el => {
-        const text = el.textContent;
-        return /\$[\d.]+/.test(text) && /[+-]\d{3}/.test(text);
-      });
-    }
-
     static parseBets() {
-      const cards = FanDuelParser.findBetCards();
       const bets = [];
 
-      for (const card of cards) {
-        const rawText = card.textContent.replace(/\s+/g, ' ').trim();
+      // The page is a <ul> with <li> items. Each bet spans two <li> elements:
+      //   1. Header <li>: contains a div with aria-label="Selection, Bet Type, , Odds, Event, Time"
+      //   2. Footer <li>: contains TOTAL WAGER, WON ON FANDUEL/RETURNED, BET ID, PLACED date
+      // There are also separator <li> items (small spacers) and banner <li> items between bets.
+
+      // Strategy: find all footer <li> (contain "BET ID"), then look backward for the header <li>.
+      const allLis = document.querySelectorAll('ul > li');
+
+      for (let i = 0; i < allLis.length; i++) {
+        const li = allLis[i];
+        const text = li.textContent;
+
+        // Identify footer <li> by "BET ID" presence
+        if (!/BET ID/i.test(text)) continue;
+
+        // --- Parse footer ---
+        const footerText = text.replace(/\s+/g, ' ').trim();
+
+        // Wager: dollar amount before "TOTAL WAGER"
+        let stake = '';
+        const stakeMatch = footerText.match(/\$([\d.]+)\s*TOTAL WAGER/i);
+        if (stakeMatch) stake = '$' + stakeMatch[1];
+
+        // Payout and result: dollar amount before "WON ON FANDUEL" or "RETURNED"
+        let payout = '';
+        let result = '';
+        const wonMatch = footerText.match(/\$([\d.]+)\s*WON ON FANDUEL/i);
+        const returnedMatch = footerText.match(/\$([\d.]+)\s*RETURNED/i);
+        if (wonMatch) {
+          payout = '$' + wonMatch[1];
+          result = parseFloat(wonMatch[1]) > 0 ? 'Won' : 'Lost';
+        } else if (returnedMatch) {
+          payout = '$' + returnedMatch[1];
+          result = parseFloat(returnedMatch[1]) > 0 ? 'Returned' : 'Lost';
+        }
+
+        // Bet ID
+        let betId = '';
+        const betIdMatch = footerText.match(/BET ID:\s*(\S+)/i);
+        if (betIdMatch) betId = betIdMatch[1];
+
+        // Placed date
+        let dateTime = '';
+        const placedMatch = footerText.match(/PLACED:\s*(.+?)(?:\s*BET ID|$)/i);
+        if (placedMatch) {
+          dateTime = placedMatch[1].trim();
+        } else {
+          // Try alternate order (BET ID before PLACED)
+          const placedMatch2 = footerText.match(/PLACED:\s*(.+)/i);
+          if (placedMatch2) dateTime = placedMatch2[1].trim();
+        }
+
+        // --- Parse header (previous non-separator <li>) ---
+        let selection = '';
+        let betType = '';
+        let odds = '';
+        let event = '';
+        let eventTime = '';
+
+        // Walk backward to find the header <li> with an aria-label
+        for (let j = i - 1; j >= 0 && j >= i - 3; j--) {
+          const headerLi = allLis[j];
+          // The header <li> contains a div with a structured aria-label
+          const ariaDiv = headerLi.querySelector('[aria-label][aria-hidden="false"]');
+          if (ariaDiv) {
+            const ariaLabel = ariaDiv.getAttribute('aria-label');
+            // Format: "Selection, Bet Type, , Odds, Event, Time"
+            // e.g. "MOUZ, MONEYLINE, , +1100, Aurora v MOUZ, 1:55pm MT"
+            // e.g. "Over, TOTAL POINTS SCORED, , -112, Old Dominion (W) @ James Madison (W), 3:00pm MT"
+            const parts = ariaLabel.split(',').map(s => s.trim());
+            if (parts.length >= 6) {
+              selection = parts[0];
+              betType = parts[1];
+              // parts[2] is empty or has handicap info
+              odds = parts[3];
+              // Event may contain commas in team names, so rejoin middle parts
+              // Last part is always the time (contains am/pm)
+              const timeIdx = parts.findIndex((p, idx) => idx >= 4 && /\d+:\d+\s*(am|pm)/i.test(p));
+              if (timeIdx >= 0) {
+                event = parts.slice(4, timeIdx).join(', ').trim();
+                eventTime = parts[timeIdx];
+              } else {
+                event = parts.slice(4).join(', ').trim();
+              }
+              // If selection has a line/handicap (e.g., "Over 137.5"), check the header spans
+              const lineSpan = headerLi.querySelector('span[aria-label^="Odds"]');
+              if (lineSpan) {
+                odds = lineSpan.textContent.trim();
+              }
+            }
+            break;
+          }
+        }
+
         const bet = {
-          'date_time': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.date),
-          'sport': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.sport),
+          'date_time': dateTime,
+          'sport': '',
           'league': '',
-          'event': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.event),
-          'bet_type': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.betType),
-          'selection': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.selection),
-          'odds': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.odds),
-          'stake': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.stake),
-          'payout': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.payout),
-          'result': FanDuelParser.queryFirst(card, FanDuelParser.SELECTORS.result),
+          'event': event + (eventTime ? ', ' + eventTime : ''),
+          'bet_type': betType,
+          'selection': selection,
+          'odds': odds,
+          'stake': stake,
+          'payout': payout,
+          'result': result,
           'site': FanDuelParser.SITE,
-          'raw_notes': rawText
+          'raw_notes': 'BET ID: ' + betId + ' | ' + footerText
         };
-
-        // Try to extract from raw text if selectors failed
-        if (!bet.odds) {
-          const oddsMatch = rawText.match(/([+-]\d{3,4})/);
-          if (oddsMatch) bet.odds = oddsMatch[1];
-        }
-        if (!bet.stake) {
-          const stakeMatch = rawText.match(/(?:stake|wager|risk)[:\s]*\$?([\d.]+)/i);
-          if (stakeMatch) bet.stake = '$' + stakeMatch[1];
-        }
-        if (!bet.payout) {
-          const payoutMatch = rawText.match(/(?:payout|win|return)[:\s]*\$?([\d.]+)/i);
-          if (payoutMatch) bet.payout = '$' + payoutMatch[1];
-        }
-        if (!bet.result) {
-          if (/\bwon\b/i.test(rawText)) bet.result = 'Won';
-          else if (/\blost?\b/i.test(rawText)) bet.result = 'Lost';
-          else if (/\bpush\b/i.test(rawText)) bet.result = 'Push';
-          else if (/\bvoid\b/i.test(rawText)) bet.result = 'Void';
-        }
-
-        // Split sport/league if combined
-        if (bet.sport && bet.sport.includes(' - ')) {
-          const parts = bet.sport.split(' - ');
-          bet.sport = parts[0].trim();
-          bet.league = parts.slice(1).join(' - ').trim();
-        }
 
         bets.push(bet);
       }
