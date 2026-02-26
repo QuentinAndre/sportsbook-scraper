@@ -47,13 +47,25 @@
 
   sendProgress('Starting auto-scroll to load all bets...');
 
+  // For DraftKings, reset any previously collected bets and enable incremental harvesting.
+  // DK uses virtual scrolling (sb-lazy-render) which removes cards from the DOM as you
+  // scroll past them, so we must collect cards during scrolling, not just at the end.
+  if (typeof DraftKingsParser !== 'undefined' && parser === DraftKingsParser) {
+    DraftKingsParser.reset();
+  }
+
   // Scroll to load all content
   if (typeof ScrollManager !== 'undefined') {
+    const harvestDuringScroll = (typeof DraftKingsParser !== 'undefined' && parser === DraftKingsParser)
+      ? () => DraftKingsParser.harvestVisibleBets()
+      : null;
+
     const scroller = new ScrollManager({
       scrollDelay: 1000,
       idleTimeout: 5000,
       maxNoChangeAttempts: 3,
-      onProgress: sendProgress
+      onProgress: sendProgress,
+      onScrollStep: harvestDuringScroll
     });
     await scroller.scrollToBottom();
   }

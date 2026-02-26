@@ -7,6 +7,9 @@ if (typeof ScrollManager === 'undefined') {
       this.maxNoChangeAttempts = options.maxNoChangeAttempts || 3;
       this.maxScrollTime = options.maxScrollTime || 120000; // 2 minute safety cap
       this.onProgress = options.onProgress || (() => {});
+      // Optional callback invoked each scroll step to harvest data from
+      // virtually-scrolled containers before cards leave the DOM.
+      this.onScrollStep = options.onScrollStep || null;
     }
 
     // Find the actual scrollable container — not always document.body.
@@ -103,11 +106,22 @@ if (typeof ScrollManager === 'undefined') {
             return;
           }
 
+          // Harvest any visible data before scrolling (for virtual-scroll containers
+          // like DraftKings sb-lazy-render that remove cards from the DOM as you scroll).
+          if (this.onScrollStep) {
+            try { this.onScrollStep(); } catch (e) { /* ignore harvest errors */ }
+          }
+
           // Scroll the container to its bottom
           if (isWindow) {
             window.scrollTo(0, document.body.scrollHeight);
           } else {
             container.scrollTop = container.scrollHeight;
+          }
+
+          // Harvest again after scroll to catch newly rendered cards
+          if (this.onScrollStep) {
+            try { this.onScrollStep(); } catch (e) { /* ignore harvest errors */ }
           }
 
           // Check if new content was added
