@@ -60,9 +60,11 @@
       ? () => DraftKingsParser.harvestVisibleBets()
       : null;
 
+    const isDK = harvestDuringScroll !== null;
     const scroller = new ScrollManager({
-      scrollDelay: 1000,
-      idleTimeout: 5000,
+      // DK virtual scroll re-renders instantly (no network), so we can go fast.
+      // FanDuel lazy-loads from the server, so keep a longer delay.
+      scrollDelay: isDK ? 300 : 1000,
       maxNoChangeAttempts: 3,
       onProgress: sendProgress,
       onScrollStep: harvestDuringScroll

@@ -37,11 +37,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep message channel open for async sendResponse
   }
 
-  // Forward progress and completion messages to popup
-  if (message.type === 'SCRAPE_PROGRESS' || message.type === 'SCRAPE_COMPLETE' || message.type === 'SCRAPE_ERROR') {
-    // Broadcast to all extension pages (popup will pick this up)
-    chrome.runtime.sendMessage(message).catch(() => {
-      // Popup might be closed, that's ok
-    });
-  }
+  // No need to forward messages from content scripts — chrome.runtime.sendMessage
+  // in MV3 already delivers to all extension listeners (background + popup).
 });

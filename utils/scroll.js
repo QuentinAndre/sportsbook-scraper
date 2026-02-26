@@ -63,6 +63,15 @@ if (typeof ScrollManager === 'undefined') {
           : 'Found bet list container, scrolling to load all bets...'
       );
 
+      // Always start from the top so virtual-scroll containers re-render
+      // all cards from the beginning (in case the user already scrolled).
+      if (isWindow) {
+        window.scrollTo(0, 0);
+      } else {
+        container.scrollTop = 0;
+      }
+      await new Promise(r => setTimeout(r, 800));
+
       return new Promise((resolve) => {
         let noChangeCount = 0;
         let lastChildCount = container.querySelectorAll ? container.querySelectorAll(':scope > *').length : 0;
@@ -112,11 +121,13 @@ if (typeof ScrollManager === 'undefined') {
             try { this.onScrollStep(); } catch (e) { /* ignore harvest errors */ }
           }
 
-          // Scroll the container to its bottom
+          // Scroll by one viewport height (incremental) so virtual-scroll
+          // containers render each section of cards as we pass through.
+          const step = isWindow ? window.innerHeight : container.clientHeight;
           if (isWindow) {
-            window.scrollTo(0, document.body.scrollHeight);
+            window.scrollBy(0, step);
           } else {
-            container.scrollTop = container.scrollHeight;
+            container.scrollTop += step;
           }
 
           // Harvest again after scroll to catch newly rendered cards
@@ -124,16 +135,21 @@ if (typeof ScrollManager === 'undefined') {
             try { this.onScrollStep(); } catch (e) { /* ignore harvest errors */ }
           }
 
-          // Check if new content was added
+          // Check if we've reached the bottom and no new content was added
           const currentScrollHeight = container.scrollHeight;
           const currentChildCount = container.querySelectorAll
             ? container.querySelectorAll(':scope > *').length
             : 0;
 
+          const scrollPos = isWindow
+            ? (window.scrollY + window.innerHeight)
+            : (container.scrollTop + container.clientHeight);
+          const atBottom = scrollPos >= currentScrollHeight - 5;
+
           const heightChanged = currentScrollHeight !== lastScrollHeight;
           const childrenChanged = currentChildCount !== lastChildCount;
 
-          if (!heightChanged && !childrenChanged && !mutationSeen) {
+          if (atBottom && !heightChanged && !childrenChanged && !mutationSeen) {
             noChangeCount++;
             this.onProgress(
               `Checking for more content... (${noChangeCount}/${this.maxNoChangeAttempts})`
