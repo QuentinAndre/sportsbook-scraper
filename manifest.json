@@ -4,10 +4,6 @@
   "version": "1.0.0",
   "description": "Export settled bet history from FanDuel and DraftKings as CSV",
   "permissions": ["activeTab", "scripting", "downloads"],
-  "host_permissions": [
-    "https://*.fanduel.com/*",
-    "https://www.draftkings.com/*"
-  ],
   "background": {
     "service_worker": "background.js"
   },
