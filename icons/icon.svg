@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+
+  <!-- Funnel (body + spout as single path to avoid gap) -->
+  <path d="M24,28 L104,28 L72,72 L72,106 C72,107.1 71.1,108 70,108 L58,108 C56.9,108 56,107.1 56,106 L56,72 Z" fill="white" opacity="0.95"/>
+
+  <!-- Sports ball icons entering the funnel -->
+  <!-- Football (left) -->
+  <ellipse cx="42" cy="20" rx="7" ry="5" fill="#fbbf24" transform="rotate(-30 42 20)"/>
+  <line x1="38" y1="18" x2="46" y2="22" stroke="#b45309" stroke-width="1" stroke-linecap="round"/>
+
+  <!-- Basketball (center) -->
+  <circle cx="64" cy="16" r="6" fill="#fb923c" stroke="#c2410c" stroke-width="1"/>
+  <line x1="64" y1="10" x2="64" y2="22" stroke="#c2410c" stroke-width="0.8"/>
+  <line x1="58" y1="16" x2="70" y2="16" stroke="#c2410c" stroke-width="0.8"/>
+
+  <!-- Baseball (right) -->
+  <circle cx="86" cy="20" r="5.5" fill="#fef3c7" stroke="#dc2626" stroke-width="1"/>
+  <path d="M83,15.5 Q86,18 83,20.5" fill="none" stroke="#dc2626" stroke-width="0.8"/>
+  <path d="M89,15.5 Q86,18 89,20.5" fill="none" stroke="#dc2626" stroke-width="0.8"/>
+
+  <!-- CSV rows coming out of the funnel spout -->
+  <g fill="white" opacity="0.85">
+    <rect x="48" y="110" width="32" height="3" rx="1.5"/>
+    <rect x="52" y="115" width="24" height="3" rx="1.5"/>
+    <rect x="55" y="120" width="18" height="3" rx="1.5"/>
+  </g>
+</svg>
