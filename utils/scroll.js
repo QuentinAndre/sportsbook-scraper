@@ -12,6 +12,25 @@ if (typeof ScrollManager === 'undefined') {
     // Find the actual scrollable container — not always document.body.
     // FanDuel uses a <ul> with overflow:auto inside a flex layout.
     findScrollContainer() {
+      // DraftKings uses <sb-lazy-render> as the scrollable bet container
+      const sbLazy = document.querySelector('sb-lazy-render');
+      if (sbLazy) {
+        // The scrollable ancestor of sb-lazy-render
+        let el = sbLazy.parentElement;
+        while (el) {
+          const style = getComputedStyle(el);
+          if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+            if (el.scrollHeight > el.clientHeight) return el;
+          }
+          el = el.parentElement;
+        }
+        // sb-lazy-render itself might be scrollable
+        const sbStyle = getComputedStyle(sbLazy);
+        if ((sbStyle.overflowY === 'auto' || sbStyle.overflowY === 'scroll') && sbLazy.scrollHeight > sbLazy.clientHeight) {
+          return sbLazy;
+        }
+      }
+
       // Look for the bet list container: a <ul> or <div> with overflow scroll/auto
       // that contains bet-related content
       const candidates = document.querySelectorAll('ul, div');
@@ -23,7 +42,7 @@ if (typeof ScrollManager === 'undefined') {
         if (el.scrollHeight <= el.clientHeight) continue;
         // Prefer elements that contain bet-related text
         const text = el.textContent || '';
-        if (/BET ID|TOTAL WAGER|MONEYLINE|SPREAD/i.test(text)) {
+        if (/BET ID|TOTAL WAGER|Wager:|MONEYLINE|SPREAD/i.test(text)) {
           return el;
         }
       }

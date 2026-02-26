@@ -1,89 +1,8 @@
-// DraftKings-specific DOM selectors and parsing
+// DraftKings-specific DOM parsing using data-test-id attributes
 // Guard against re-injection
 if (typeof DraftKingsParser === 'undefined') {
   class DraftKingsParser {
     static SITE = 'DraftKings';
-
-    // Selectors ordered by stability: data-testid > aria > class partial
-    static SELECTORS = {
-      betCard: [
-        '[data-testid="bet-card"]',
-        '[data-testid="settled-bet-card"]',
-        '[class*="bet-card"]',
-        '[class*="betCard"]',
-        '[class*="settled-bet"]',
-        '[class*="myBetsCard"]',
-        '[class*="receipt"]'
-      ],
-      date: [
-        '[data-testid="bet-date"]',
-        '[data-testid="placed-date"]',
-        '[class*="bet-date"]',
-        '[class*="betDate"]',
-        '[class*="placed-date"]',
-        '[class*="timestamp"]'
-      ],
-      event: [
-        '[data-testid="event-name"]',
-        '[data-testid="event-cell-link"]',
-        '[class*="event-name"]',
-        '[class*="eventName"]',
-        '[class*="event-cell"]',
-        '[class*="matchup"]'
-      ],
-      selection: [
-        '[data-testid="selection-name"]',
-        '[data-testid="bet-leg-description"]',
-        '[class*="selection"]',
-        '[class*="betLeg"]',
-        '[class*="outcome-name"]',
-        '[class*="pick"]'
-      ],
-      odds: [
-        '[data-testid="odds"]',
-        '[data-testid="bet-odds"]',
-        '[class*="odds"]',
-        '[class*="price"]',
-        '[class*="americanOdds"]'
-      ],
-      stake: [
-        '[data-testid="stake"]',
-        '[data-testid="bet-amount"]',
-        '[class*="stake"]',
-        '[class*="wager"]',
-        '[class*="bet-amount"]',
-        '[class*="risk"]'
-      ],
-      payout: [
-        '[data-testid="payout"]',
-        '[data-testid="potential-payout"]',
-        '[data-testid="returns"]',
-        '[class*="payout"]',
-        '[class*="winnings"]',
-        '[class*="returns"]',
-        '[class*="toCollect"]'
-      ],
-      result: [
-        '[data-testid="bet-status"]',
-        '[data-testid="bet-result"]',
-        '[class*="bet-status"]',
-        '[class*="betStatus"]',
-        '[class*="result"]',
-        '[class*="badge"]'
-      ],
-      betType: [
-        '[data-testid="bet-type"]',
-        '[class*="bet-type"]',
-        '[class*="betType"]',
-        '[class*="wager-type"]'
-      ],
-      sport: [
-        '[data-testid="sport-label"]',
-        '[class*="sport"]',
-        '[class*="league"]',
-        '[class*="category"]'
-      ]
-    };
 
     static URL_PATTERN = /draftkings\.com\/(mybets|bet-history|my-bets)/i;
 
@@ -91,78 +10,102 @@ if (typeof DraftKingsParser === 'undefined') {
       return DraftKingsParser.URL_PATTERN.test(url);
     }
 
-    static queryFirst(parent, selectorList) {
-      for (const sel of selectorList) {
-        const el = parent.querySelector(sel);
-        if (el) return el.textContent.trim();
-      }
-      return '';
-    }
-
-    static findBetCards() {
-      for (const sel of DraftKingsParser.SELECTORS.betCard) {
-        const cards = document.querySelectorAll(sel);
-        if (cards.length > 0) return Array.from(cards);
-      }
-
-      // Fallback: look for repeating card-like structures
-      const candidates = document.querySelectorAll(
-        '[class*="card"], [class*="bet"], [class*="receipt"]'
-      );
-      return Array.from(candidates).filter(el => {
-        const text = el.textContent;
-        return /\$[\d.]+/.test(text) && /[+-]\d{3}/.test(text);
-      });
-    }
-
     static parseBets() {
-      const cards = DraftKingsParser.findBetCards();
       const bets = [];
 
+      // Each bet card has data-test-id="bet-card-{betId}"
+      const cards = document.querySelectorAll('[data-test-id^="bet-card-"]');
+
       for (const card of cards) {
+        // Extract the bet ID from the card's data-test-id
+        const cardTestId = card.getAttribute('data-test-id');
+        const betIdSuffix = cardTestId.replace('bet-card-', '');
+
+        // Title: "2 Picks", "Under 222.5", "MEM Grizzlies +5.5"
+        const titleEl = card.querySelector(`[data-test-id="bet-details-title-${betIdSuffix}"]`);
+        const title = titleEl ? titleEl.textContent.trim() : '';
+
+        // Odds: "+445", "−110"
+        const oddsEl = card.querySelector(`[data-test-id="bet-details-displayOdds-${betIdSuffix}"]`);
+        let odds = oddsEl ? oddsEl.textContent.trim() : '';
+        // Normalize minus sign (DK uses Unicode −, not ASCII -)
+        odds = odds.replace(/\u2212/g, '-');
+
+        // Subtitle / bet type: "40+, 30+", "Live Total", "Live Spread"
+        const subtitleEl = card.querySelector(`[data-test-id="bet-details-subtitle-${betIdSuffix}"]`);
+        const subtitle = subtitleEl ? subtitleEl.textContent.trim() : '';
+
+        // Status: "Open", "Won", "Lost", "Push", "Void"
+        const statusEl = card.querySelector(`[data-test-id="bet-details-status-${betIdSuffix}"]`);
+        const status = statusEl ? statusEl.textContent.trim() : '';
+
+        // Stake: "Wager: $0.10"
+        const stakeEl = card.querySelector(`[data-test-id="bet-stake-${betIdSuffix}"]`);
+        let stake = '';
+        if (stakeEl) {
+          const stakeMatch = stakeEl.textContent.match(/\$([\d.]+)/);
+          if (stakeMatch) stake = '$' + stakeMatch[1];
+        }
+
+        // Returns: "To Pay: $0.54", "Payout: $1.20", "Returns: $0.00"
+        const returnsEl = card.querySelector(`[data-test-id="bet-returns-${betIdSuffix}"]`);
+        let payout = '';
+        if (returnsEl) {
+          const payoutMatch = returnsEl.textContent.match(/\$([\d.]+)/);
+          if (payoutMatch) payout = '$' + payoutMatch[1];
+        }
+
+        // SGP badge (optional)
+        const sgpEl = card.querySelector(`[data-test-id="sgp-${betIdSuffix}"]`);
+        const isSGP = !!sgpEl;
+
+        // Team names for the event
+        const team1El = card.querySelector('[data-test-id^="event-team-name-1-"]');
+        const team2El = card.querySelector('[data-test-id^="event-team-name-2-"]');
+        const team1 = team1El ? team1El.textContent.trim() : '';
+        const team2 = team2El ? team2El.textContent.trim() : '';
+        const event = team1 && team2 ? `${team1} v ${team2}` : team1 || team2;
+
+        // Bet reference: date and DK bet ID
+        const dateEl = card.querySelector(`[data-test-id="bet-reference-${betIdSuffix}-0"]`);
+        const dkIdEl = card.querySelector(`[data-test-id="bet-reference-${betIdSuffix}-1"]`);
+        const dateTime = dateEl ? dateEl.textContent.trim() : '';
+        const dkBetId = dkIdEl ? dkIdEl.textContent.trim() : '';
+
+        // Determine bet type
+        let betType = '';
+        if (isSGP) {
+          betType = 'SGP';
+        } else if (subtitle) {
+          betType = subtitle;
+        }
+
+        // Selection: for SGP it's the subtitle (picks summary), for singles it's the title
+        let selection = isSGP ? subtitle : title;
+
+        // Result mapping
+        let result = status;
+        if (/^won$/i.test(status)) result = 'Won';
+        else if (/^lost?$/i.test(status)) result = 'Lost';
+        else if (/^push$/i.test(status)) result = 'Push';
+        else if (/^void|cancelled$/i.test(status)) result = 'Void';
+
         const rawText = card.textContent.replace(/\s+/g, ' ').trim();
-        const bet = {
-          'date_time': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.date),
-          'sport': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.sport),
+
+        bets.push({
+          'date_time': dateTime,
+          'sport': '',
           'league': '',
-          'event': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.event),
-          'bet_type': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.betType),
-          'selection': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.selection),
-          'odds': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.odds),
-          'stake': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.stake),
-          'payout': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.payout),
-          'result': DraftKingsParser.queryFirst(card, DraftKingsParser.SELECTORS.result),
+          'event': event,
+          'bet_type': betType,
+          'selection': selection,
+          'odds': odds,
+          'stake': stake,
+          'payout': payout,
+          'result': result,
           'site': DraftKingsParser.SITE,
-          'raw_notes': rawText
-        };
-
-        // Fallback extraction from raw text
-        if (!bet.odds) {
-          const oddsMatch = rawText.match(/([+-]\d{3,4})/);
-          if (oddsMatch) bet.odds = oddsMatch[1];
-        }
-        if (!bet.stake) {
-          const stakeMatch = rawText.match(/(?:stake|wager|risk|bet)[:\s]*\$?([\d.]+)/i);
-          if (stakeMatch) bet.stake = '$' + stakeMatch[1];
-        }
-        if (!bet.payout) {
-          const payoutMatch = rawText.match(/(?:payout|win|return|collect)[:\s]*\$?([\d.]+)/i);
-          if (payoutMatch) bet.payout = '$' + payoutMatch[1];
-        }
-        if (!bet.result) {
-          if (/\bwon\b/i.test(rawText)) bet.result = 'Won';
-          else if (/\blost?\b/i.test(rawText)) bet.result = 'Lost';
-          else if (/\bpush\b/i.test(rawText)) bet.result = 'Push';
-          else if (/\bvoid\b|cancelled/i.test(rawText)) bet.result = 'Void';
-        }
-
-        if (bet.sport && bet.sport.includes(' - ')) {
-          const parts = bet.sport.split(' - ');
-          bet.sport = parts[0].trim();
-          bet.league = parts.slice(1).join(' - ').trim();
-        }
-
-        bets.push(bet);
+          'raw_notes': dkBetId + ' | ' + rawText
+        });
       }
 
       return bets;
