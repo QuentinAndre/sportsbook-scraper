@@ -1,6 +1,6 @@
-# Sportsbook Bet History Exporter
+# Sportsbook History Exporter
 
-A Chrome extension that exports your settled bet history from **FanDuel** and **DraftKings** as CSV files.
+A Chrome extension that exports your settled bet history from supported sportsbooks as CSV files.
 
 The extension auto-scrolls through infinite-scroll bet history pages, parses all loaded bets, and downloads a CSV with the following columns:
 
@@ -47,19 +47,19 @@ In the top-right corner of the extensions page, you'll see a toggle labeled **De
 2. In the folder picker, navigate to and select the `sportsbook-scraper` folder (or `sportsbook-scraper-master` if you downloaded the ZIP)
 3. Click **Select Folder**
 
-The extension should now appear in your extensions list with the name "Sportsbook Bet History Exporter".
+The extension should now appear in your extensions list with the name "Sportsbook History Exporter".
 
 ### Step 5: Pin the extension (optional but recommended)
 
 1. Click the puzzle piece icon in Chrome's toolbar (top right)
-2. Find "Sportsbook Bet History Exporter"
+2. Find "Sportsbook History Exporter"
 3. Click the pin icon next to it
 
 This keeps the extension icon visible in your toolbar for easy access.
 
 ## Usage
 
-1. Log into **DraftKings** and navigate to **My Bets → Settled**, or log into **FanDuel** and navigate to your **Account Activity / Bet History**
+1. Log into your sportsbook and navigate to your settled bets / bet history page
 2. Click the extension icon in the toolbar
 3. Click **Start Scraping**
 4. Wait for it to scroll through your bets and generate the CSV
@@ -76,10 +76,10 @@ The CSV file will be named `{site}_bets_{timestamp}.csv`.
 
 ## Updating Selectors
 
-FanDuel and DraftKings may change their page structure over time, which can break the scraper. To fix this:
+Sportsbook sites may change their page structure over time, which can break the scraper. To fix this:
 
 1. Open DevTools (F12) on the bet history page
 2. Inspect a bet card element
 3. Look for `data-testid`, `data-qa`, or `aria-label` attributes (these are the most stable)
-4. Update the `SELECTORS` object in `parsers/fanduel.js` or `parsers/draftkings.js`
+4. Update the `SELECTORS` object in the relevant parser file under `parsers/`
 5. Go to `chrome://extensions` and click the reload icon on the extension card

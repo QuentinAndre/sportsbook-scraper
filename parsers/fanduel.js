@@ -1,8 +1,8 @@
-// FanDuel-specific DOM parsing
+// Site-specific DOM parsing
 // Guard against re-injection
 if (typeof FanDuelParser === 'undefined') {
   class FanDuelParser {
-    static SITE = 'FanDuel';
+    static SITE = 'siteB';
 
     static URL_PATTERN = /fanduel\.com\/(my-bets|account\/activity|history|mybets)/i;
 
@@ -15,7 +15,7 @@ if (typeof FanDuelParser === 'undefined') {
 
       // The page is a <ul> with <li> items. Each bet spans two <li> elements:
       //   1. Header <li>: contains a div with aria-label="Selection, Bet Type, , Odds, Event, Time"
-      //   2. Footer <li>: contains TOTAL WAGER, WON ON FANDUEL/RETURNED, BET ID, PLACED date
+      //   2. Footer <li>: contains TOTAL WAGER, WON/RETURNED, BET ID, PLACED date
       // There are also separator <li> items (small spacers) and banner <li> items between bets.
 
       // Strategy: find all footer <li> (contain "BET ID"), then look backward for the header <li>.
@@ -36,7 +36,7 @@ if (typeof FanDuelParser === 'undefined') {
         const stakeMatch = footerText.match(/\$([\d.]+)\s*TOTAL WAGER/i);
         if (stakeMatch) stake = '$' + stakeMatch[1];
 
-        // Payout and result: dollar amount before "WON ON FANDUEL" or "RETURNED"
+        // Payout and result: dollar amount before "WON ON ..." or "RETURNED"
         let payout = '';
         let result = '';
         const wonMatch = footerText.match(/\$([\d.]+)\s*WON ON FANDUEL/i);

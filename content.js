@@ -11,22 +11,22 @@
   if (/fanduel\.com/i.test(url)) {
     if (typeof FanDuelParser !== 'undefined' && FanDuelParser.isValidPage(url)) {
       parser = FanDuelParser;
-      siteName = 'fanduel';
+      siteName = 'siteB';
     } else if (typeof FanDuelParser !== 'undefined') {
       chrome.runtime.sendMessage({
         type: 'SCRAPE_ERROR',
-        error: 'Please navigate to your FanDuel bet history/activity page first.'
+        error: 'Please navigate to your bet history/activity page first.'
       });
       return;
     }
   } else if (/draftkings\.com/i.test(url)) {
     if (typeof DraftKingsParser !== 'undefined' && DraftKingsParser.isValidPage(url)) {
       parser = DraftKingsParser;
-      siteName = 'draftkings';
+      siteName = 'siteA';
     } else if (typeof DraftKingsParser !== 'undefined') {
       chrome.runtime.sendMessage({
         type: 'SCRAPE_ERROR',
-        error: 'Please navigate to your DraftKings settled bets page first.'
+        error: 'Please navigate to your settled bets page first.'
       });
       return;
     }
@@ -35,7 +35,7 @@
   if (!parser) {
     chrome.runtime.sendMessage({
       type: 'SCRAPE_ERROR',
-      error: 'This site is not supported. Please navigate to FanDuel or DraftKings bet history.'
+      error: 'This site is not supported. Please navigate to your sportsbook bet history page.'
     });
     return;
   }
@@ -47,8 +47,8 @@
 
   sendProgress('Starting auto-scroll to load all bets...');
 
-  // For DraftKings, reset any previously collected bets and enable incremental harvesting.
-  // DK uses virtual scrolling (sb-lazy-render) which removes cards from the DOM as you
+  // Reset any previously collected bets and enable incremental harvesting for parsers
+  // that use virtual scrolling (sb-lazy-render) which removes cards from the DOM as you
   // scroll past them, so we must collect cards during scrolling, not just at the end.
   if (typeof DraftKingsParser !== 'undefined' && parser === DraftKingsParser) {
     DraftKingsParser.reset();
@@ -62,8 +62,8 @@
 
     const isDK = harvestDuringScroll !== null;
     const scroller = new ScrollManager({
-      // DK virtual scroll re-renders instantly (no network), so we can go fast.
-      // FanDuel lazy-loads from the server, so keep a longer delay.
+      // Virtual scroll re-renders instantly (no network), so we can go fast.
+      // Some sites lazy-load from the server, so keep a longer delay.
       scrollDelay: isDK ? 300 : 1000,
       maxNoChangeAttempts: 3,
       onProgress: sendProgress,

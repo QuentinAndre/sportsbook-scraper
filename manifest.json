@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Sportsbook Bet History Exporter",
+  "name": "Sportsbook History Exporter",
   "version": "1.0.0",
-  "description": "Export settled bet history from FanDuel and DraftKings as CSV",
+  "description": "Export sportbook history as a CSV file.",
   "permissions": ["activeTab", "scripting", "downloads"],
   "background": {
     "service_worker": "background.js"

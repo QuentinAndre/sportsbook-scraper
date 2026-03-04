@@ -1,13 +1,13 @@
-// DraftKings-specific DOM parsing using data-test-id attributes
+// Site-specific DOM parsing using data-test-id attributes
 // Guard against re-injection
 if (typeof DraftKingsParser === 'undefined') {
   class DraftKingsParser {
-    static SITE = 'DraftKings';
+    static SITE = 'siteA';
 
     static URL_PATTERN = /draftkings\.com\/(mybets|bet-history|my-bets)/i;
 
-    // Accumulated bets collected during scrolling (keyed by DK bet ID to dedupe).
-    // DraftKings uses virtual scrolling (sb-lazy-render) which only keeps visible
+    // Accumulated bets collected during scrolling (keyed by bet ID to dedupe).
+    // This site uses virtual scrolling (sb-lazy-render) which only keeps visible
     // cards in the DOM, so we must harvest cards incrementally while scrolling.
     static _collectedBets = new Map();
 
@@ -31,7 +31,7 @@ if (typeof DraftKingsParser === 'undefined') {
       // Check for boosted odds (original crossed out, boosted shown)
       const boostedOddsEl = card.querySelector(`[data-test-id="bet-details-boosted-displayOdds-${betIdSuffix}"]`);
       if (boostedOddsEl) odds = boostedOddsEl.textContent.trim();
-      // Normalize minus sign (DK uses Unicode −, not ASCII -)
+      // Normalize minus sign (Unicode − to ASCII -)
       odds = odds.replace(/\u2212/g, '-');
 
       // Subtitle / bet type: "40+, 30+", "Live Total", "Live Spread"
@@ -69,7 +69,7 @@ if (typeof DraftKingsParser === 'undefined') {
       const team2 = team2El ? team2El.textContent.trim() : '';
       const event = team1 && team2 ? `${team1} v ${team2}` : team1 || team2;
 
-      // Bet reference: date and DK bet ID
+      // Bet reference: date and bet ID
       const dateEl = card.querySelector(`[data-test-id="bet-reference-${betIdSuffix}-0"]`);
       const dkIdEl = card.querySelector(`[data-test-id="bet-reference-${betIdSuffix}-1"]`);
       const dateTime = dateEl ? dateEl.textContent.trim() : '';
@@ -115,7 +115,7 @@ if (typeof DraftKingsParser === 'undefined') {
     /**
      * Harvest all currently-visible bet cards into the accumulated collection.
      * Call this repeatedly during scrolling to capture cards before they are
-     * removed from the DOM by DraftKings' virtual scroll (sb-lazy-render).
+     * removed from the DOM by the virtual scroll container (sb-lazy-render).
      * Returns the number of NEW bets found in this pass.
      */
     static harvestVisibleBets() {

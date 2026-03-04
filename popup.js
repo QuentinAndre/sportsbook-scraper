@@ -56,7 +56,7 @@ startBtn.addEventListener('click', async () => {
     // Check if we're on a supported site
     const url = tab.url || '';
     if (!/fanduel\.com|draftkings\.com/i.test(url)) {
-      setStatus('Please navigate to FanDuel or DraftKings first.', 'error');
+      setStatus('Please navigate to a supported sportsbook first.', 'error');
       startBtn.disabled = false;
       startBtn.textContent = 'Start Scraping';
       return;

@@ -13,9 +13,9 @@ if (typeof ScrollManager === 'undefined') {
     }
 
     // Find the actual scrollable container — not always document.body.
-    // FanDuel uses a <ul> with overflow:auto inside a flex layout.
+    // Some sites use a <ul> with overflow:auto inside a flex layout.
     findScrollContainer() {
-      // DraftKings uses <sb-lazy-render> as the scrollable bet container
+      // Some sites use <sb-lazy-render> as the scrollable bet container
       const sbLazy = document.querySelector('sb-lazy-render');
       if (sbLazy) {
         // The scrollable ancestor of sb-lazy-render
@@ -116,7 +116,7 @@ if (typeof ScrollManager === 'undefined') {
           }
 
           // Harvest any visible data before scrolling (for virtual-scroll containers
-          // like DraftKings sb-lazy-render that remove cards from the DOM as you scroll).
+          // like sb-lazy-render that remove cards from the DOM as you scroll).
           if (this.onScrollStep) {
             try { this.onScrollStep(); } catch (e) { /* ignore harvest errors */ }
           }
